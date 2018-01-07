@@ -1,0 +1,33 @@
+---
+  - name: "Hardening: remove privileges for 'test' tables"
+    command: mysql -uroot -ne "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'"
+
+  - name: "Hardening: set root password"
+    mysql_user:
+      login_user: "root"
+      name: "root"
+      host_all: yes
+      password: "{{ mariadb_root_password }}"
+      state: present
+
+  - name: "Hardening: remove anonymous users"
+    mysql_user:
+      login_user: "root"
+      login_password: "{{ mariadb_root_password }}"
+      name: ""
+      host_all: yes
+      state: absent
+
+  - name: "Hardening: test database is absent"
+    mysql_db:
+      login_user: "root"
+      login_password: "{{ mariadb_root_password }}"
+      name: test
+      state: absent
+
+  - name: "Hardening: restart MariaDB service to apply hardening"
+    become: yes
+    service:
+      name: mysql
+      state: restarted
+      enabled: yes

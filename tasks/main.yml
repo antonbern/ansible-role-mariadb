@@ -1,0 +1,55 @@
+---
+- name: "Fail if 'mariadb_root_password' is undefined"
+  fail:
+    msg: "This play requires 'mariadb_root_password' variable to be defined"
+  when: mariadb_root_password is undefined
+
+- name: Official Maria DB yum repository
+  become: yes
+  yum_repository:
+    name: mariadb
+    description: Maria DB Repository
+    baseurl: http://yum.mariadb.org/{{ mariadb_version }}/centos7-amd64
+    gpgkey: https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+    repo_gpgcheck: no
+    gpgcheck: no
+    enabled: no
+    owner: root
+    group: root
+    mode: u=rw,g=r,o=r
+    state: present
+
+- name: MariaDB packages
+  become: yes
+  yum:
+    name: "{{ item }}"
+    state: installed
+    enablerepo: mariadb
+  with_items:
+    - MariaDB-server
+    - MariaDB-client
+    - MySQL-python
+
+- name: MariaDB service
+  become: yes
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+
+- name: "Lookup '/etc/mysql_hardened' file"
+  become: yes
+  stat:
+    path: /etc/mysql_hardened
+  register: mysql_hardened_file
+
+- name: Hardening
+  include_tasks: "mariadb-hardening.yml"
+  when: not mysql_hardened_file.stat.exists
+
+- name: "Hardening: touch '/etc/mysql_hardened' file"
+  become: yes
+  file:
+    path: /etc/mysql_hardened
+    state: touch
+  when: not mysql_hardened_file.stat.exists
